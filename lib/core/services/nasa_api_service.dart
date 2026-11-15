@@ -40,10 +40,7 @@ class NasaApiService {
   /// ella por 10.0.2.2; web, escritorio y el simulador de iOS por 127.0.0.1.
   static String get baseUrl {
     if (_apiUrlConfigurada.isNotEmpty) return _apiUrlConfigurada;
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8000';
-    }
-    return 'http://127.0.0.1:8000';
+    return 'https://datagroo-back.onrender.com/';
   }
 
   /// Endpoint del backend que recibe las coordenadas por POST (`/clima`).
