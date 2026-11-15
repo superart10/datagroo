@@ -1,0 +1,105 @@
+#  Resumen de Arquitectura General
+
+El proyecto **DATAGROO** está estructurado con una arquitectura desacoplada y escalable:
+- **Frontend ([lib/](lib))**: Aplicación móvil multiplataforma desarrollada en **Flutter/Dart**, organizada bajo el patrón **Feature-First** (por funcionalidades) e integración con **SQLite** local.
+- **Backend ([back/](back))**: Servicio API REST desarrollado en **Python (FastAPI)** para consumo e interpretación de datos satelitales de la **NASA** (POWER, GPM, SMAP) y base de datos relacional.
+
+---
+
+# 1. Estructura del Frontend (`lib/`)
+
+La carpeta `lib/` contiene todo el código fuente de la interfaz de usuario y la lógica cliente del proyecto Flutter:
+
+```
+lib/
+├── core/                   # Núcleo de la app (Servicios globales y utilidades)
+│   └── services/           # Lógica de negocio reusable y clientes de API/BD
+├── data/                   # Capa de datos, modelos y repositorios
+├── features/               # Arquitectura modular por funcionalidades (Features)
+│   ├── auth/               # Autenticación y registro
+│   ├── climate/            # Pantalla de clima y datos satelitales NASA
+│   ├── crops/              # Catálogo y detalles de cultivos
+│   ├── home/               # Dashboard e inicio
+│   ├── navigation/         # Control de navegación inferior (BottomNavigationBar)
+│   ├── plots/              # Gestión de terrenos, historial y planes de rotación
+│   └── profile/            # Perfil del agricultor y configuración
+└── main.dart               # Punto de entrada de la aplicación Flutter
+```
+
+### Explicación Técnica de la Capa Frontend:
+
+#### [lib/core/](lib/core) (Core del Sistema)
+Contiene módulos globales e independientes que prestan servicios a toda la aplicación.
+- **[services/database_helper.dart](lib/core/services/database_helper.dart)**: Administrador Singleton de SQLite. Crea y actualiza las tablas (`regions`, `crops`, `region_cultivo`, `plots`, `plot_crop_history`) y ejecuta consultas como `getRegionByCoordinates()` o `getCropsByRegion()`.
+- **[services/nasa_api_service.dart](lib/core/services/nasa_api_service.dart)**: Servicio que envía peticiones HTTP POST con las coordenadas del terreno (`latitude`, `longitude`) a los servicios satelitales y genera las descripciones de interpretación técnica de los resultados climáticos.
+- **[services/ieac.dart](lib/core/services/ieac.dart)**: Función matemática que calcula el *Índice Específico de Aptitud de Cultivo* (IEAC) `(0.35 * p) + (0.35 * t) + (0.30 * a)` y evalúa la compatibilidad térmica.
+- **[services/location_service.dart](lib/core/services/location_service.dart)**: Conector con el GPS nativo del dispositivo (`Geolocator`) para la captura de coordenadas en tiempo real.
+
+#### [lib/features/](lib/features) (Módulos por Funcionalidad)
+Maneja las pantallas (`screens`) y componentes (`widgets`) agrupados por su dominio funcional:
+- **`plots/` (Terrenos y Parcelas)**:
+  - **[plots_list_screen.dart](lib/features/plots/screens/plots_list_screen.dart)**: Formulario de registro de terreno con autodetección de región geográfica según rangos GPS y catálogo de cultivos filtrado.
+  - **[plots_detail_screen.dart](lib/features/plots/screens/plots_detail_screen.dart)**: Pestaña doble con el historial de siembras del terreno y el motor dinámico de recomendaciones de rotación según IEAC.
+- **`climate/` (Clima y Satélites)**:
+  - **[climate_screen.dart](lib/features/climate/screens/climate_screen.dart)**: Pantalla de monitoreo climático en tiempo real que ejecuta peticiones POST y evalúa la compatibilidad agrícola del cultivo en parcela.
+- **`crops/` (Catálogo Agrícola)**:
+  - **[crops_list_screen.dart](lib/features/crops/screens/crops_list_screen.dart)** y **[crop_detail_screen.dart](lib/features/crops/screens/crop_detail_screen.dart)**: Lista con buscador de cultivos y ficha técnica completa (temperaturas min/max, requerimiento de agua, tipo de suelo).
+- **`home/` (Inicio)**:
+  - **[home_dashboard_screen.dart](lib/features/home/screens/home_dashboard_screen.dart)**: Vista principal con resumen de parcelas, accesos rápidos y métricas de clima.
+- **`profile/` (Perfil del Usuario)**:
+  - **[profile_screen.dart](lib/features/profile/screens/profile_screen.dart)**: Información del agricultor, accesos directos y pie de página de créditos.
+- **`navigation/`**:
+  - **[main_navigation_screen.dart](lib/features/navigation/main_navigation_screen.dart)**: Estructura contenedora del `BottomNavigationBar` de 5 pestañas.
+
+---
+
+# 🐍 2. Estructura del Backend (`back/`)
+
+La carpeta `back/` contiene el servidor backend en **Python** utilizando **FastAPI**:
+
+```
+back/
+├── app/
+│   ├── config.py           # Variables de entorno y configuración general
+│   ├── main.py             # Punto de entrada y arranque del servidor FastAPI
+│   ├── logica/             # Algoritmos y lógica de negocio pura
+│   │   ├── clima.py        # Procesamiento e interpretación climática
+│   │   └── recomendaciones.py # Algoritmos de recomendación agronómica
+│   ├── modelos/            # Esquemas de validación Pydantic
+│   │   └── parcela.py      # Estructuras de datos de terrenos y coordenadas
+│   ├── routers/            # Endpoints y rutas de la API REST
+│   │   ├── clima.py        # Endpoint POST /clima para consulta con coordenadas
+│   │   ├── parcelas.py     # Endpoints CRUD para gestión de terrenos
+│   │   └── zonas.py        # Endpoint de regiones y rangos delimitadores
+│   └── servicios/          # Clientes HTTP y conectores externos
+│       ├── db.py           # Conexión a la base de datos SQL del servidor
+│       ├── nasa_power.py   # Conector con la API NASA POWER
+│       ├── nasa_gpm.py     # Conector con la API NASA GPM (Lluvias)
+│       ├── smap.py         # Conector con la API NASA SMAP (Humedad de suelo)
+│       └── supaBase_db.py  # Integración opcional con Supabase DB
+└── requirimientos.txt      # Archivo de dependencias de Python (FastAPI, Uvicorn, etc.)
+```
+
+### Explicación Técnica de la Capa Backend:
+- **`app/main.py`**: Instancia de FastAPI con los middleware CORS habilitados para comunicarse con la app móvil Flutter.
+- **`app/routers/`**: Expone los endpoints de la API. El router `clima.py` procesa solicitudes POST con el esquema `{ "latitude": float, "longitude": float }` y responde con los datos procesados.
+- **`app/servicios/`**: Módulos encargados de realizar *fetching* asíncrono hacia las API oficiales de la NASA (POWER para temperatura/sol, GPM para precipitación y SMAP para humedad del suelo).
+- **`app/logica/`**: Procesa las métricas meteorológicas brutas y las transforma en explicaciones e interpretación de resultados agronómicos.
+
+---
+
+# 3. Plataformas Nativas y Configuración
+
+- **[android/](android)**: Proyecto nativo de Android. Contiene el [AndroidManifest.xml](android/app/src/main/AndroidManifest.xml) (permisos de GPS e Internet) y la configuración Gradle en Kotlin ([build.gradle.kts](android/app/build.gradle.kts)).
+- **[ios/](ios)**: Proyecto nativo de iOS con la configuración de Xcode (`Runner.xcodeproj`), `Info.plist` y delegados en Swift (`AppDelegate.swift`).
+- **[web/](web)**: Assets, favicon, manifest PWA e `index.html` para el compilado web de Flutter.
+- **[test/](test)**: Pruebas automatizadas unitarias y de widgets (`widget_test.dart`).
+- **`.venv/`**: Entorno virtual aislado de Python para ejecutar el servidor backend FastAPI de manera local.
+
+---
+
+#  4. Archivos de Configuración Raíz
+
+- **[pubspec.yaml](pubspec.yaml)**: Archivo maestro de configuración de Flutter. Declara paquetes como `sqflite`, `http`, `geolocator`, fuentes e imágenes.
+- **[analysis_options.yaml](analysis_options.yaml)**: Reglas de análisis estático del linter de Dart para mantener código limpio.
+- **[.gitignore](.gitignore)**: Reglas de exclusión de Git (ignora carpetas `build/`, `.dart_tool/`, `.venv/`, etc.).
