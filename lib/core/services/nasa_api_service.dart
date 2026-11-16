@@ -72,7 +72,7 @@ class NasaApiService {
             headers: {'Content-Type': 'application/json'},
             body: jsonPayload,
           )
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 12));
 
       if (response.statusCode == 200 && response.body.isNotEmpty) {
         final Map<String, dynamic> data = jsonDecode(response.body);

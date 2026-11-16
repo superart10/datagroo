@@ -57,3 +57,5 @@ android/build/
 .idea/workspace.xml
 hs_err_pid*.log
 replay_pid*.log
+
+.env

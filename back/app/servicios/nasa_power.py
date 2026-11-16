@@ -13,6 +13,9 @@ PARAMETROS = {
 }
 
 
+FUENTE = "NASA POWER"
+
+
 class ErrorPower(Exception):
     pass
 

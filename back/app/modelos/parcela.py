@@ -57,6 +57,8 @@ class ClimaCoordenadasRespuesta(BaseModel):
     temperature: float | None = None  # °C, media del periodo
     precipitation: float | None = None  # mm/día, media del periodo
     soil_moisture: float | None = None  # %, humedad superficial del suelo
-    source: str = "NASA POWER"
+    precipitation_source: str | None = None  # "NASA GPM IMERG" o "NASA POWER"
+    soil_moisture_source: str | None = None  # "NASA SMAP L4" o "NASA POWER"
+    source: str = "NASA POWER, GPM & SMAP"
     start: date | None = None
     end: date | None = None
